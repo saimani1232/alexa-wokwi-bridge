@@ -1,12 +1,6 @@
 // Bridge server to connect Alexa to Wokwi via MQTT
 
-// Add near the top of server.js
-const PORT = process.env.PORT || 3000;
 
-// Change your app.listen line to:
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
 const express = require('express');
 const bodyParser = require('body-parser');
 const mqtt = require('mqtt');
