@@ -4,21 +4,22 @@ const bodyParser = require('body-parser');
 const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
-const port = 3000;
+// Use environment variable for port with 3000 as fallback
+const port = process.env.PORT || 3000;
 
 // Store virtual device states
 const devices = {
   "livingRoomLed": {
     name: "Living Room LED",
     state: "OFF",
-    color: "white",
+    color: "#ffffff",
     brightness: 100,
     type: "LED"
   },
   "kitchenLed": {
     name: "Kitchen LED",
     state: "OFF",
-    color: "white",
+    color: "#ffffff",
     brightness: 100,
     type: "LED"
   },
@@ -33,6 +34,11 @@ const devices = {
 
 app.use(bodyParser.json());
 app.use(express.static('public'));
+
+// Serve index.html for root path
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/public/index.html');
+});
 
 // API endpoints for device control
 app.get('/api/devices', (req, res) => {
@@ -79,5 +85,5 @@ io.on('connection', (socket) => {
 
 // Start server
 http.listen(port, () => {
-  console.log(`Virtual IoT device server running on http://localhost:${port}`);
+  console.log(`Virtual IoT device server running on port ${port}`);
 });
