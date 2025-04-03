@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Virtual IoT Devices</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: #333;
+      text-align: center;
+    }
+    .devices-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-top: 30px;
+    }
+    .device {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      width: 300px;
+    }
+    .device-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .device-status {
+      padding: 5px 10px;
+      border-radius: 15px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    .status-on {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    .status-off {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+    .led {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      margin: 20px auto;
+      transition: all 0.3s ease;
+    }
+    .lcd {
+      width: 240px;
+      height: 120px;
+      border: 2px solid #333;
+      margin: 20px auto;
+      background-color: #83f883;
+      padding: 10px;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    .control-panel {
+      margin-top: 15px;
+    }
+    button {
+      padding: 8px 12px;
+      margin-right: 5px;
+      margin-bottom: 5px;
+      border: none;
+      border-radius: 4px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0069d9;
+    }
+    select, input {
+      padding: 8px;
+      margin-bottom: 10px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Virtual IoT Devices</h1>
+    <div class="devices-container" id="devices">
+      <!-- Devices will be dynamically added here -->
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const devicesContainer = document.getElementById('devices');
+    let devicesState = {};
+
+    // Handle initial state
+    socket.on('initialState', (devices) => {
+      devicesState = devices;
+      renderDevices();
+    });
+
+    // Handle device updates
+    socket.on('deviceUpdate', (data) => {
+      devicesState[data.deviceId] = data.device;
+      renderDevices();
+    });
+
+    // Render all devices
+    function renderDevices() {
+      devicesContainer.innerHTML = '';
+      
+      for (const [deviceId, device] of Object.entries(devicesState)) {
+        const deviceEl = document.createElement('div');
+        deviceEl.className = 'device';
+        
+        // Device header
+        const headerEl = document.createElement('div');
+        headerEl.className = 'device-header';
+        headerEl.innerHTML = `
+          <h2>${device.name}</h2>
+          <span class="device-status ${device.state === 'ON' ? 'status-on' : 'status-off'}">
+            ${device.state}
+          </span>
+        `;
+        deviceEl.appendChild(headerEl);
+        
+        // Device visualization
+        if (device.type === 'LED') {
+          const ledEl = document.createElement('div');
+          ledEl.className = 'led';
+          ledEl.style.backgroundColor = device.state === 'ON' ? device.color : '#ccc';
+          ledEl.style.boxShadow = device.state === 'ON' ? `0 0 20px ${device.color}` : 'none';
+          ledEl.style.opacity = device.state === 'ON' ? (device.brightness / 100) : 0.3;
+          deviceEl.appendChild(ledEl);
+        } else if (device.type === 'LCD') {
+          const lcdEl = document.createElement('div');
+          lcdEl.className = 'lcd';
+          lcdEl.style.opacity = device.state === 'ON' ? 1 : 0.3;
+          lcdEl.innerText = device.text || '';
+          deviceEl.appendChild(lcdEl);
+        }
+        
+        // Control panel
+        const controlsEl = document.createElement('div');
+        controlsEl.className = 'control-panel';
+        
+        // Power button
+        const powerBtn = document.createElement('button');
+        powerBtn.innerText = device.state === 'ON' ? 'Turn Off' : 'Turn On';
+        powerBtn.onclick = () => toggleDevice(deviceId, device.state === 'ON' ? 'OFF' : 'ON');
+        controlsEl.appendChild(powerBtn);
+        
+        // Device specific controls
+        if (device.type === 'LED') {
+          // Color picker
+          const colorLabel = document.createElement('div');
+          colorLabel.innerText = 'Color:';
+          controlsEl.appendChild(colorLabel);
+          
+          const colorPicker = document.createElement('input');
+          colorPicker.type = 'color';
+          colorPicker.value = device.color;
+          colorPicker.onchange = (e) => updateDevice(deviceId, { color: e.target.value });
+          controlsEl.appendChild(colorPicker);
+          
+          // Brightness slider
+          const brightnessLabel = document.createElement('div');
+          brightnessLabel.innerText = 'Brightness:';
+          controlsEl.appendChild(brightnessLabel);
+          
+          const brightnessSlider = document.createElement('input');
+          brightnessSlider.type = 'range';
+          brightnessSlider.min = '0';
+          brightnessSlider.max = '100';
+          brightnessSlider.value = device.brightness;
+          brightnessSlider.onchange = (e) => updateDevice(deviceId, { brightness: parseInt(e.target.value) });
+          controlsEl.appendChild(brightnessSlider);
+        } else if (device.type === 'LCD') {
+          // Text input
+          const textLabel = document.createElement('div');
+          textLabel.innerText = 'Display Text:';
+          controlsEl.appendChild(textLabel);
+          
+          const textInput = document.createElement('input');
+          textInput.type = 'text';
+          textInput.value = device.text || '';
+          textInput.onchange = (e) => updateDevice(deviceId, { text: e.target.value });
+          controlsEl.appendChild(textInput);
+          
+          // Backlight toggle
+          const backlightBtn = document.createElement('button');
+          backlightBtn.innerText = `Backlight: ${device.backlight}`;
+          backlightBtn.onclick = () => updateDevice(deviceId, { backlight: device.backlight === 'ON' ? 'OFF' : 'ON' });
+          controlsEl.appendChild(backlightBtn);
+        }
+        
+        deviceEl.appendChild(controlsEl);
+        devicesContainer.appendChild(deviceEl);
+      }
+    }
+
+    // Toggle device on/off
+    function toggleDevice(deviceId, state) {
+      updateDevice(deviceId, { state });
+    }
+
+    // Update device properties
+    function updateDevice(deviceId, properties) {
+      fetch(`/api/devices/${deviceId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(properties)
+      });
+    }
+  </script>
+</body>
+</html>
