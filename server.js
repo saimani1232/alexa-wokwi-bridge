@@ -5,7 +5,7 @@ const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 // Use environment variable for port with 3000 as fallback
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 10000;
 
 // Store virtual device states
 const devices = {
