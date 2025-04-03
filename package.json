@@ -2,17 +2,16 @@
   "name": "alexa-wokwi-bridge",
   "version": "1.0.0",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+"scripts": {
+  "start": "node server.js"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
-  "dependencies": {
-    "body-parser": "^2.2.0",
-    "cors": "^2.8.5",
-    "express": "^4.21.2",
-    "mqtt": "^5.10.4"
-  }
+"dependencies": {
+  "express": "^4.17.1",
+  "socket.io": "^4.0.0",
+  "body-parser": "^1.19.0"
+}
 }
