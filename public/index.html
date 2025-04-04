@@ -18,6 +18,13 @@
       color: #333;
       text-align: center;
     }
+    .header-info {
+      background-color: #e9f5ff;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
     .devices-container {
       display: flex;
       flex-wrap: wrap;
@@ -93,13 +100,47 @@
       width: 100%;
       box-sizing: border-box;
     }
+    .log-container {
+      margin-top: 30px;
+      padding: 15px;
+      background-color: #f8f9fa;
+      border-radius: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .log-entry {
+      margin-bottom: 5px;
+      padding: 5px;
+      border-bottom: 1px solid #eee;
+      font-family: monospace;
+    }
+    .log-timestamp {
+      color: #6c757d;
+      margin-right: 10px;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Virtual IoT Devices</h1>
+    
+    <div class="header-info">
+      <h3>Usage Instructions</h3>
+      <p>Control your virtual devices using the web interface below or with Alexa by saying:</p>
+      <ul>
+        <li>"Alexa, ask virtual smart home to turn on living room LED"</li>
+        <li>"Alexa, ask virtual smart home to set kitchen LED color to blue"</li>
+        <li>"Alexa, ask virtual smart home to display hello world on LCD display"</li>
+      </ul>
+    </div>
+    
     <div class="devices-container" id="devices">
       <!-- Devices will be dynamically added here -->
+    </div>
+    
+    <div class="log-container">
+      <h3>Activity Log</h3>
+      <div id="log"></div>
     </div>
   </div>
 
@@ -107,18 +148,61 @@
   <script>
     const socket = io();
     const devicesContainer = document.getElementById('devices');
+    const logContainer = document.getElementById('log');
     let devicesState = {};
+
+    // Add event log entry
+    function addLogEntry(message) {
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      
+      const timestamp = document.createElement('span');
+      timestamp.className = 'log-timestamp';
+      timestamp.textContent = new Date().toLocaleTimeString();
+      
+      entry.appendChild(timestamp);
+      entry.appendChild(document.createTextNode(message));
+      
+      logContainer.prepend(entry);
+      
+      // Limit to 50 entries
+      if (logContainer.children.length > 50) {
+        logContainer.removeChild(logContainer.lastChild);
+      }
+    }
 
     // Handle initial state
     socket.on('initialState', (devices) => {
       devicesState = devices;
       renderDevices();
+      addLogEntry('Connected to server. Received initial device states.');
     });
 
     // Handle device updates
     socket.on('deviceUpdate', (data) => {
       devicesState[data.deviceId] = data.device;
       renderDevices();
+      
+      const updatedProps = [];
+      for (const [key, value] of Object.entries(data.device)) {
+        if (typeof value === 'object') continue;
+        updatedProps.push(`${key}: ${value}`);
+      }
+      
+      addLogEntry(`Device "${data.device.name}" updated: ${updatedProps.join(', ')}`);
+    });
+
+    // Handle connection status
+    socket.on('connect', () => {
+      addLogEntry('Connected to server');
+    });
+    
+    socket.on('disconnect', () => {
+      addLogEntry('Disconnected from server');
+    });
+    
+    socket.on('connect_error', (error) => {
+      addLogEntry(`Connection error: ${error.message}`);
     });
 
     // Render all devices
@@ -128,6 +212,7 @@
       for (const [deviceId, device] of Object.entries(devicesState)) {
         const deviceEl = document.createElement('div');
         deviceEl.className = 'device';
+        deviceEl.id = `device-${deviceId}`;
         
         // Device header
         const headerEl = document.createElement('div');
@@ -163,7 +248,11 @@
         // Power button
         const powerBtn = document.createElement('button');
         powerBtn.innerText = device.state === 'ON' ? 'Turn Off' : 'Turn On';
-        powerBtn.onclick = () => toggleDevice(deviceId, device.state === 'ON' ? 'OFF' : 'ON');
+        powerBtn.onclick = () => {
+          const newState = device.state === 'ON' ? 'OFF' : 'ON';
+          toggleDevice(deviceId, newState);
+          addLogEntry(`Manually ${newState === 'ON' ? 'turned on' : 'turned off'} ${device.name}`);
+        };
         controlsEl.appendChild(powerBtn);
         
         // Device specific controls
@@ -176,7 +265,10 @@
           const colorPicker = document.createElement('input');
           colorPicker.type = 'color';
           colorPicker.value = device.color;
-          colorPicker.onchange = (e) => updateDevice(deviceId, { color: e.target.value });
+          colorPicker.onchange = (e) => {
+            updateDevice(deviceId, { color: e.target.value });
+            addLogEntry(`Set ${device.name} color to ${e.target.value}`);
+          };
           controlsEl.appendChild(colorPicker);
           
           // Brightness slider
@@ -189,7 +281,11 @@
           brightnessSlider.min = '0';
           brightnessSlider.max = '100';
           brightnessSlider.value = device.brightness;
-          brightnessSlider.onchange = (e) => updateDevice(deviceId, { brightness: parseInt(e.target.value) });
+          brightnessSlider.onchange = (e) => {
+            const value = parseInt(e.target.value);
+            updateDevice(deviceId, { brightness: value });
+            addLogEntry(`Set ${device.name} brightness to ${value}%`);
+          };
           controlsEl.appendChild(brightnessSlider);
         } else if (device.type === 'LCD') {
           // Text input
@@ -200,13 +296,20 @@
           const textInput = document.createElement('input');
           textInput.type = 'text';
           textInput.value = device.text || '';
-          textInput.onchange = (e) => updateDevice(deviceId, { text: e.target.value });
+          textInput.onchange = (e) => {
+            updateDevice(deviceId, { text: e.target.value });
+            addLogEntry(`Set ${device.name} text to "${e.target.value}"`);
+          };
           controlsEl.appendChild(textInput);
           
           // Backlight toggle
           const backlightBtn = document.createElement('button');
           backlightBtn.innerText = `Backlight: ${device.backlight}`;
-          backlightBtn.onclick = () => updateDevice(deviceId, { backlight: device.backlight === 'ON' ? 'OFF' : 'ON' });
+          backlightBtn.onclick = () => {
+            const newBacklight = device.backlight === 'ON' ? 'OFF' : 'ON';
+            updateDevice(deviceId, { backlight: newBacklight });
+            addLogEntry(`Set ${device.name} backlight to ${newBacklight}`);
+          };
           controlsEl.appendChild(backlightBtn);
         }
         
@@ -228,8 +331,26 @@
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(properties)
+      })
+      .then(response => {
+        if (!response.ok) {
+          return response.json().then(err => {
+            throw new Error(`Server error: ${err.error || response.statusText}`);
+          });
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('Device updated:', data);
+      })
+      .catch(error => {
+        console.error('Error updating device:', error);
+        addLogEntry(`Error: ${error.message}`);
       });
     }
+    
+    // Initial log entry
+    addLogEntry('Page loaded. Connecting to server...');
   </script>
 </body>
 </html>
