@@ -32,6 +32,17 @@ const devices = {
   }
 };
 
+// Add device ID mappings for Alexa (lowercase versions)
+const deviceMappings = {
+  "living room led": "livingRoomLed",
+  "kitchen led": "kitchenLed", 
+  "lcd display": "lcdDisplay",
+  "living room light": "livingRoomLed",
+  "kitchen light": "kitchenLed",
+  "screen": "lcdDisplay",
+  "display": "lcdDisplay"
+};
+
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
@@ -45,18 +56,38 @@ app.get('/api/devices', (req, res) => {
   res.json(devices);
 });
 
+// Get device by ID
 app.get('/api/devices/:deviceId', (req, res) => {
-  const deviceId = req.params.deviceId;
+  let deviceId = req.params.deviceId;
+  
+  // Check if the deviceId is a mapped name
+  if (deviceMappings[deviceId.toLowerCase()]) {
+    deviceId = deviceMappings[deviceId.toLowerCase()];
+  }
+  
   if (devices[deviceId]) {
     res.json(devices[deviceId]);
   } else {
-    res.status(404).send('Device not found');
+    res.status(404).json({
+      error: 'Device not found',
+      availableDevices: Object.keys(devices)
+    });
   }
 });
 
+// Update device
 app.post('/api/devices/:deviceId', (req, res) => {
-  const deviceId = req.params.deviceId;
+  let deviceId = req.params.deviceId;
+  
+  // Check if the deviceId is a mapped name
+  if (deviceMappings[deviceId.toLowerCase()]) {
+    deviceId = deviceMappings[deviceId.toLowerCase()];
+  }
+  
   if (devices[deviceId]) {
+    // Log the incoming request
+    console.log(`Device update request for ${deviceId}:`, req.body);
+    
     // Update device properties based on request body
     Object.assign(devices[deviceId], req.body);
     
@@ -69,8 +100,22 @@ app.post('/api/devices/:deviceId', (req, res) => {
     console.log(`Device ${deviceId} updated:`, devices[deviceId]);
     res.json(devices[deviceId]);
   } else {
-    res.status(404).send('Device not found');
+    console.log(`Device not found: ${deviceId}`);
+    res.status(404).json({
+      error: 'Device not found',
+      requestedDevice: deviceId,
+      availableDevices: Object.keys(devices)
+    });
   }
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Socket.IO for real-time updates
@@ -83,7 +128,18 @@ io.on('connection', (socket) => {
   });
 });
 
+// Error handling for the entire app
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({
+    error: 'Server error',
+    message: err.message
+  });
+});
+
 // Start server
 http.listen(port, () => {
   console.log(`Virtual IoT device server running on port ${port}`);
+  console.log('Available devices:', Object.keys(devices));
+  console.log('Device name mappings:', deviceMappings);
 });
