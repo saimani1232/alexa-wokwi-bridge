@@ -22,7 +22,6 @@ A voice-controlled interface for virtual devices using Amazon Alexa. This projec
 3. Lambda sends a command to the hosted API.
 4. The API updates the state of the virtual devices in the browser via HTTP.
 
-![System Diagram](demo/system-diagram.png)
 
 ## 🛠️ Installation & Setup
 
@@ -59,6 +58,4 @@ A voice-controlled interface for virtual devices using Amazon Alexa. This projec
 * Expand command set (e.g., RGB LED, sensors)
 * Real-time device updates with WebSockets
 
-## 📄 License
 
-MIT License
