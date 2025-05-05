@@ -2,7 +2,6 @@
 
 A voice-controlled interface for virtual devices using Amazon Alexa. This project allows a physical Alexa device to control simulated components like LEDs and LCD displays through a custom Alexa skill, an AWS Lambda function, and a hosted REST API.
 
-![Project Demo](demo/demo-gif.gif)
 
 ## 🌐 Live Demo
 
